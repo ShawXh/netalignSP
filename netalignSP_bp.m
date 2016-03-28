@@ -73,6 +73,11 @@ beta = b;
 %histb = zeros(maxiter,4); % history of messages from ei->b vertices
 fbest = 0; fbestiter = 0;
 
+[rp ci ai tripi matn matm] = bipartite_matching_setup(...
+                                   Le(:,3),Le(:,1),Le(:,2),m,n);         
+mperm = tripi(tripi>0); 
+clear ai;
+
 while iter<=maxiter
     iter = iter+1;
     prevmfiii = mfiii;
