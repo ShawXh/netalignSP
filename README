@@ -1,0 +1,3 @@
+usage
+load('example-2.mat')
+netalign(A,B,L)
