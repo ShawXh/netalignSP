@@ -1,6 +1,6 @@
 function dist = floyd(G)
 
-numV = size(G,1);
+numV = size(G,1); 
 G = 1./G;
 G(1:numV+1:numV*numV)= 0;
 for i = 1:numV

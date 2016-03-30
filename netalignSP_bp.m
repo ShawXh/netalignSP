@@ -1,22 +1,23 @@
-function [hista histb] = netalignSP_bp(A,B,L,lambda,a,b,gamma,dtype,maxiter,verbose)
+function [mi] = netalignSP_bp(A,B,L,lambda,a,b,gamma,dtype,maxiter,verbose)
 
 
-hista = 0;
-histb = 0;
-eps = 1e6;
+
+eps = 1e5;
 if ~exist('lambda','var') || isempty(lambda), lambda=1; end
 if ~exist('a','var') || isempty(a), a=1; end
 if ~exist('b','var') || isempty(b), b=1; end
 if ~exist('gamma','var') || isempty(gamma), gamma=0.99; end
 if ~exist('dtype', 'var') || isempty(dtype), dtype=1; end
-if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=20; end
+if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=50; end
 if ~exist('verbose', 'var') || isempty(verbose), verbose=1; end 
 
+numBvertices = size(B,1);
+numAvertices = size(A,1);
 
 distA = floyd(A);
 distB = floyd(B);
-distA = distA + diag(eps);
-distB = distB + diag(eps);
+distA(1:numAvertices+1:end) = eps;
+distB(1:numBvertices+1:end) = eps;
 
 distA = 1./((distA).^lambda);
 distB = 1./((distB).^lambda);
@@ -44,8 +45,7 @@ indicesLtrans = indicesL';
 
 m = max(Le(:,1));
 n = max(Le(:,2));
-numBvertices = size(B,1);
-numAvertices = size(A,1);
+
 
 % Initialize the messages
 
@@ -69,17 +69,15 @@ alpha = a;
 beta = b;
 
 % Initialize history
-%hista = zeros(maxiter,4); % history of messages from ei->a vertices
-%histb = zeros(maxiter,4); % history of messages from ei->b vertices
+hista = zeros(maxiter,4); % history of messages from ei->a vertices
+histb = zeros(maxiter,4); % history of messages from ei->b vertices
 fbest = 0; fbestiter = 0;
-
 [rp ci ai tripi matn matm] = bipartite_matching_setup(...
                                    Le(:,3),Le(:,1),Le(:,2),m,n);         
 mperm = tripi(tripi>0); 
 clear ai;
 
 while iter<=maxiter
-    iter = iter+1;
     prevmfiii = mfiii;
     prevmgiii = mgiii;
     prevmpijii = mpijii;
@@ -94,12 +92,13 @@ while iter<=maxiter
     prevmiiqji = miiqji;
     curdamp = damping*curdamp;
     
+    
     omaxfiii = max(othermaxplus(2,Le(:,1),Le(:,2),miifi,m,n,(1/2)*alpha*Le(:,3)),0);
     omaxgiii = max(othermaxplus(1,Le(:,1),Le(:,2),miigi,m,n,(1/2)*alpha*Le(:,3)),0);
     
     mfiii = (1/2)*alpha*Le(:,3) - omaxfiii;
     mgiii = (1/2)*alpha*Le(:,3) - omaxgiii;
-
+    
     for ij=1:nedgesA
         i = Ae(ij,1);
         j = Ae(ij,2);  
@@ -205,9 +204,26 @@ while iter<=maxiter
         miiqij = curdamp*(miiqij)+(1-curdamp)*(prevmiiqij);
         miiqji = curdamp*(miiqji)+(1-curdamp)*(prevmiiqji);
     end
-        
-
     
+    [hista(iter,:) mi1] = round_messages(miifi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
+    [histb(iter,:) mi2]= round_messages(miigi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
+    
+    if hista(iter,1)>fbest
+        fbestiter=iter;  fbest=hista(iter,1); mi = mi1;
+    end
+    if histb(iter,1)>fbest
+        fbestiter=-iter;  fbest=histb(iter,1);mi = mi2;
+    end
+    
+    if verbose
+        if fbestiter==iter, bestchar='*a'; 
+        elseif fbestiter==-iter, bestchar='*b';
+        else bestchar='';
+        end
+        fprintf('%4s   %4i   %7g %7g %7i %7g   %7g %7g %7i %7g\n', ...
+            bestchar, iter, hista(iter,:), histb(iter,:));
+    end
+    iter = iter+1;
     
 end
 
@@ -257,7 +273,7 @@ for i=1:nedges
     end
 end
 end
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function maxSum = maxpluspq(pq,dim,indicesL,j,message,ij, distM,iapos)
   nvertices = size(distM,1);
@@ -294,7 +310,7 @@ for k=1:nedges
 end 
 
 end
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 function omp=maxsigma(i,j,iapos,lw,indicesL,dist)
@@ -320,7 +336,7 @@ for m = 1:nvertices
    end   
 end
 end
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function sum = neighborSum(dim,i,message,indicesM)
 sum=0;
@@ -336,6 +352,40 @@ for k = 1:numvertices
     end
     sum = sum+message(idx);
 end
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [info mi]=round_messages(messages,w,li,lj,alpha,beta,rp,ci,tripi,n,m,perm,distA,distB)
+ai=zeros(length(tripi),1);
+ai(tripi>0)=messages(perm);
+[val ma mb mi]= bipartite_matching_primal_dual(rp,ci,ai,tripi,n,m);
+matchweight = sum(w(mi)); cardinality = sum(mi); 
+overlap = 0;
+len = length(mi);
+for ii = 1: len
+    if mi(ii) == 0, continue; end
+    i = li(ii);
+    for jj = 1:len
+        if mi(jj) == 0||ii==jj, continue; end
+        j = li(jj);
+        if distA(i,j) ~=1, continue; end
+     %   fprintf('lj(ii)  %7i lj(jj) %7i distB %7g  \n', ...
+     %   lj(ii), lj(jj),distB(lj(ii),lj(jj)));
+        overlap = overlap + distB(lj(ii),lj(jj));
+    end
+end
+for ii = 1: len
+    if mi(ii) == 0, continue; end
+    iapos = lj(ii);
+    for jj = 1:len
+        if mi(jj) == 0 || ii==jj, continue; end
+        japos= lj(jj);
+        if distB(iapos,japos) ~=1, continue; end
+        overlap = overlap + distA(li(ii),li(jj));
+    end
+end
+f = alpha*matchweight + (1/4)*beta*overlap;
+info = [f matchweight cardinality overlap];
 end
 
 
