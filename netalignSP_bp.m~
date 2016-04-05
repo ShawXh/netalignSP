@@ -39,18 +39,11 @@ nedgesB = size(Be,1);
 
 % find vertice to edge mapping
 indicesL = sparse(Le(:,1),Le(:,2),1:length(Le(:,1)),size(L,1),size(L,2));
-idxA = sparse(Ae(:,1),Ae(:,2),1:length(Ae(:,1)),size(A,1),size(A,2));
-idxB = sparse(Be(:,1),Be(:,2),1:length(Be(:,1)),size(B,1),size(B,2));
+indicesA = full(sparse(Ae(:,1),Ae(:,2),1:length(Ae(:,1)),size(A,1),size(A,2)));
+indicesB = full(sparse(Be(:,1),Be(:,2),1:length(Be(:,1)),size(B,1),size(B,2)));
 
 neighborsL = findNeighbors(indicesL);
 neighborsInverseL = findNeighborsInverse(indicesL);
-indicesA = compressIndices(idxA);
-indicesInverseA = compressIndicesInverse(idxA);
-indicesB = compressIndices(idxB);
-indicesInverseB = compressIndicesInverse(idxB);
-
-clear idxA;
-clear idxB;
 
 indicesL = full(indicesL);
 indicesLtrans = indicesL';
@@ -187,8 +180,8 @@ while iter<=maxiter
     for ii = 1:nedgesL
         i = Le(ii,1);
         iapos = Le(ii,2);
-        neighSum = neighborSum(i,mpijii(:,ii),indicesA)+neighborSum(i,mpjiii(:,ii),indicesInverseA)...
-                    +neighborSum(iapos,mqijii(:,ii),indicesB)+neighborSum(iapos,mqjiii(:,ii),indicesInverseB);
+        neighSum = neighborSum(1,i,mpijii(:,ii),indicesA)+neighborSum(2,i,mpjiii(:,ii),indicesA)...
+                    +neighborSum(1,iapos,mqijii(:,ii),indicesB)+neighborSum(2,iapos,mqjiii(:,ii),indicesB);
         miifi(ii) = mgiii(ii) + neighSum;
         miigi(ii) = mfiii(ii) + neighSum;
        
@@ -358,13 +351,17 @@ end
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function sum = neighborSum(i,message,indicesM)
+function sum = neighborSum(dim,i,message,indicesM,)
 sum=0;
 numvertices = size(indicesM,1);
 for l = 1:numvertices
-    idx = indicesM(i,l);
-    if idx==0
-        break;
+    if dim ==1
+       idx = indicesM(i,k);
+    else
+       idx = indicesM(k,i);
+    end
+    if idx ==0
+        continue;
     end
     sum = sum+message(idx);
 end
