@@ -329,7 +329,7 @@ function omp=maxsigma(i,j,iapos,lw,indicesL,dist,N)
 nvertices = size(dist,1);
 omp = 0;
 for k = 1:nvertices
-    if(N(i,k) == 0)
+    if N(i,k) == 0
         break;
     end
     m = N(i,k);
@@ -337,18 +337,12 @@ for k = 1:nvertices
         continue;
     end
     idx1 = indicesL(i,m);
-    if idx1==0
-        continue;
-    end
    for l = 1:nvertices
-       if(N(j,l) == 0)
-           break
+       if N(j,l) == 0
+           break;
        end
        n = N(j,l);
        idx2 = indicesL(j,n);
-       if  idx2 ==0
-           continue;
-       end
        if dist(m,n)+lw(idx1)+lw(idx2) > omp
            omp = dist(m,n)+lw(idx1)+lw(idx2);
        end           
