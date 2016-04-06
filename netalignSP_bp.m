@@ -5,10 +5,10 @@ function [ma mb mi] = netalignSP_bp(A,B,L,lambda,a,b,gamma,dtype,maxiter,verbose
 eps = 1e5;
 if ~exist('lambda','var') || isempty(lambda), lambda=1; end
 if ~exist('a','var') || isempty(a), a=1; end
-if ~exist('b','var') || isempty(b), b=2; end
+if ~exist('b','var') || isempty(b), b=1; end
 if ~exist('gamma','var') || isempty(gamma), gamma=0.9; end
 if ~exist('dtype', 'var') || isempty(dtype), dtype=1; end
-if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=100; end
+if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=20; end
 if ~exist('verbose', 'var') || isempty(verbose), verbose=1; end 
 
 numBvertices = size(B,1);
@@ -112,21 +112,24 @@ while iter<=maxiter
     mgiii = (1/2)*alpha*Le(:,3) - omaxgiii;
     
     for ij=1:nedgesA
+        
         i = Ae(ij,1);
         j = Ae(ij,2);  
         othermaxmikpij = othermaxplus(2,Le(:,1),Le(:,2),miipij(:,ij),m,n,zeros(nedgesL,1));
         omaxmikpij = maxplus(j,indicesL,miipij(:,ij));
+        tic
         for l = 1:numBvertices
            iapos = neighborsL(i,l);
            if iapos == 0
                break;
            end
            idx = indicesL(i,iapos);
-           omaxp1=max(maxpluspq(1,1,indicesL,j,miipij,ij,(1/4)*beta*distB,iapos),0);
+           omaxp1=max(maxpluspq(1,1,indicesL,j,miipij,ij,(1/4)*beta*distB,iapos,neighborsL),0);
            omaxsigma = maxsigma(i,j,iapos,miipij(:,ij),indicesL,(1/4)*beta*distB,neighborsL);
            omaxp2 = max(othermaxmikpij(idx),omaxmikpij);
            mpijii(ij,idx) = omaxp1 - max(max(omaxsigma,omaxp2),0);
-        end        
+        end     
+        toc
     end
     
     
@@ -141,7 +144,7 @@ while iter<=maxiter
                break;
            end
            idx = indicesL(i,iapos);
-           omaxp1=max(maxpluspq(1,2,indicesL,j,miipji,ji,(1/4)*beta*distB,iapos),0);
+           omaxp1=max(maxpluspq(1,2,indicesL,j,miipji,ji,(1/4)*beta*distB,iapos,neighborsL),0);
            omaxsigma = maxsigma(i,j,iapos,miipji(:,ji),indicesL,(1/4)*beta*distBtrans,neighborsL);
            omaxp2 = max(othermaxmikpji(idx),omaxmikpji);
            mpjiii(ji,idx) = omaxp1 - max(max(omaxsigma,omaxp2),0);
@@ -162,7 +165,7 @@ while iter<=maxiter
            if idx == 0
                continue;
            end
-           omaxq1=max(maxpluspq(2,1,indicesL,japos,miiqij,ij,(1/4)*beta*distA,i),0);
+           omaxq1=max(maxpluspq(2,1,indicesL,japos,miiqij,ij,(1/4)*beta*distA,i,neighborsInverseL),0);
            omaxsigma = maxsigma(iapos,japos,i,miiqij(:,ij),indicesLtrans,(1/4)*beta*distA,neighborsInverseL);
            omaxq2 = max(othermaxmikqij(idx),omaxmikqij);
            mqijii(ij,idx) = omaxq1 - max(max(omaxsigma,omaxq2),0);
@@ -180,7 +183,7 @@ while iter<=maxiter
                break;
            end
            idx = indicesL(i,iapos);
-           omaxq1=max(maxpluspq(2,2,indicesL,japos,miiqji,ji,(1/4)*beta*distA,iapos),0);
+           omaxq1=max(maxpluspq(2,2,indicesL,japos,miiqji,ji,(1/4)*beta*distA,iapos,neighborsInverseL),0);
            omaxsigma = maxsigma(iapos,japos,i,miiqji(:,ji),indicesLtrans,(1/4)*beta*distAtrans,neighborsInverseL);
            omaxq2 = max(othermaxmikqji(idx),omaxmikqji);
            mqjiii(ji,idx) = omaxq1 - max(max(omaxsigma,omaxq2),0);
@@ -294,17 +297,18 @@ end
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function maxSum = maxpluspq(pq,dim,indicesL,j,message,ij, distM,iapos)
+function maxSum = maxpluspq(pq,dim,indicesL,j,message,ij, distM,iapos,N)
   nvertices = size(distM,1);
   maxSum = 0;
-  for k = 1:nvertices
+  for l = 1:nvertices
+      k = N(j,l);
+      if k==0
+          break;
+      end
       if pq == 1
           idx = indicesL(j,k);
       else
           idx = indicesL(k,j);
-      end
-      if idx == 0
-          continue
       end
       if dim==1 && distM(iapos,k)+message(idx,ij)>maxSum
           maxSum = distM(iapos,k)+message(idx,ij);

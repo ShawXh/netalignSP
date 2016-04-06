@@ -23,12 +23,12 @@ addpath('../');
 
 nrep = 1;
 
-k = 20;
+k = 15;
 q = 2;
 d = 1;
 % use expected degree to indicate noise in L
-pns = [linspace(0.5,8,13) 10 12.5 15 20];
-%pns = [10 15 20];
+%pns = [linspace(0.5,8,13) 10 12.5 15 20];
+pns = [linspace(0.5,10,5)];
 
 %% Run the experiment
 
