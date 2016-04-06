@@ -1,14 +1,14 @@
-function [mi] = netalignSP_bp(A,B,L,lambda,a,b,gamma,dtype,maxiter,verbose)
+function [ma mb mi] = netalignSP_bp(A,B,L,lambda,a,b,gamma,dtype,maxiter,verbose)
 
 
 
 eps = 1e5;
 if ~exist('lambda','var') || isempty(lambda), lambda=1; end
 if ~exist('a','var') || isempty(a), a=1; end
-if ~exist('b','var') || isempty(b), b=1; end
-if ~exist('gamma','var') || isempty(gamma), gamma=0.99; end
+if ~exist('b','var') || isempty(b), b=2; end
+if ~exist('gamma','var') || isempty(gamma), gamma=0.999; end
 if ~exist('dtype', 'var') || isempty(dtype), dtype=1; end
-if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=50; end
+if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=100; end
 if ~exist('verbose', 'var') || isempty(verbose), verbose=1; end 
 
 numBvertices = size(B,1);
@@ -48,6 +48,7 @@ indicesA = compressIndices(idxA);
 indicesInverseA = compressIndicesInverse(idxA);
 indicesB = compressIndices(idxB);
 indicesInverseB = compressIndicesInverse(idxB);
+neighborsB = findNeighbors(idxB);
 
 clear idxA;
 clear idxB;
@@ -116,7 +117,8 @@ while iter<=maxiter
         j = Ae(ij,2);  
         othermaxmikpij = othermaxplus(2,Le(:,1),Le(:,2),miipij(:,ij),m,n,zeros(nedgesL,1));
         omaxmikpij = maxplus(j,indicesL,miipij(:,ij));
-        for iapos = 1:numBvertices
+        for l = 1:numBvertices
+            iapos = neib
            idx = indicesL(i,iapos);
            if idx == 0
                continue;
@@ -217,14 +219,14 @@ while iter<=maxiter
         miiqji = curdamp*(miiqji)+(1-curdamp)*(prevmiiqji);
     end
     
-    [hista(iter,:) mi1] = round_messages(miifi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
-    [histb(iter,:) mi2]= round_messages(miigi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
+    [hista(iter,:) mi1 ma1 mb1] = round_messages(miifi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
+    [histb(iter,:) mi2 ma2 mb2]= round_messages(miigi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
     
     if hista(iter,1)>fbest
-        fbestiter=iter;  fbest=hista(iter,1); mi = mi1;
+        fbestiter=iter;  fbest=hista(iter,1); mi = mi1;ma = ma1; mb = mb1;
     end
     if histb(iter,1)>fbest
-        fbestiter=-iter;  fbest=histb(iter,1);mi = mi2;
+        fbestiter=-iter;  fbest=histb(iter,1); mi = mi2;ma = ma2; mb = mb2;
     end
     
     if verbose
@@ -329,7 +331,8 @@ function omp=maxsigma(i,j,iapos,lw,indicesL,dist,N)
 nvertices = size(dist,1);
 omp = 0;
 for k = 1:nvertices
-    if(N(i,k) == 0)
+    k
+    if N(i,k) == 0
         break;
     end
     m = N(i,k);
@@ -338,7 +341,8 @@ for k = 1:nvertices
     end
     idx1 = indicesL(i,m);
    for l = 1:nvertices
-       if(N(j,l) == 0)
+       l
+       if N(j,l) == 0
            break;
        end
        n = N(j,l);
@@ -365,7 +369,7 @@ end
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [info mi]=round_messages(messages,w,li,lj,alpha,beta,rp,ci,tripi,n,m,perm,distA,distB)
+function [info mi ma mb]=round_messages(messages,w,li,lj,alpha,beta,rp,ci,tripi,n,m,perm,distA,distB)
 ai=zeros(length(tripi),1);
 ai(tripi>0)=messages(perm);
 [val ma mb mi]= bipartite_matching_primal_dual(rp,ci,ai,tripi,n,m);
