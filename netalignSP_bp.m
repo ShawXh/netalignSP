@@ -1,14 +1,14 @@
-function [mi] = netalignSP_bp(A,B,L,lambda,a,b,gamma,dtype,maxiter,verbose)
+function [ma mb mi] = netalignSP_bp(A,B,L,lambda,a,b,gamma,dtype,maxiter,verbose)
 
 
 
 eps = 1e5;
 if ~exist('lambda','var') || isempty(lambda), lambda=1; end
 if ~exist('a','var') || isempty(a), a=1; end
-if ~exist('b','var') || isempty(b), b=1; end
-if ~exist('gamma','var') || isempty(gamma), gamma=0.99; end
+if ~exist('b','var') || isempty(b), b=2; end
+if ~exist('gamma','var') || isempty(gamma), gamma=0.999; end
 if ~exist('dtype', 'var') || isempty(dtype), dtype=1; end
-if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=50; end
+if ~exist('maxiter', 'var') || isempty(maxiter), maxiter=100; end
 if ~exist('verbose', 'var') || isempty(verbose), verbose=1; end 
 
 numBvertices = size(B,1);
@@ -104,7 +104,7 @@ while iter<=maxiter
     prevmiiqji = miiqji;
     curdamp = damping*curdamp;
     
-    
+
     omaxfiii = max(othermaxplus(2,Le(:,1),Le(:,2),miifi,m,n,(1/2)*alpha*Le(:,3)),0);
     omaxgiii = max(othermaxplus(1,Le(:,1),Le(:,2),miigi,m,n,(1/2)*alpha*Le(:,3)),0);
     
@@ -116,11 +116,12 @@ while iter<=maxiter
         j = Ae(ij,2);  
         othermaxmikpij = othermaxplus(2,Le(:,1),Le(:,2),miipij(:,ij),m,n,zeros(nedgesL,1));
         omaxmikpij = maxplus(j,indicesL,miipij(:,ij));
-        for iapos = 1:numBvertices
-           idx = indicesL(i,iapos);
-           if idx == 0
-               continue;
+        for l = 1:numBvertices
+           iapos = neighborsL(i,l);
+           if iapos == 0
+               break;
            end
+           idx = indicesL(i,iapos);
            omaxp1=max(maxpluspq(1,1,indicesL,j,miipij,ij,(1/4)*beta*distB,iapos),0);
            omaxsigma = maxsigma(i,j,iapos,miipij(:,ij),indicesL,(1/4)*beta*distB,neighborsL);
            omaxp2 = max(othermaxmikpij(idx),omaxmikpij);
@@ -134,11 +135,12 @@ while iter<=maxiter
         i = Ae(ji,2);  
         othermaxmikpji = othermaxplus(2,Le(:,1),Le(:,2),miipji(:,ji),m,n,zeros(nedgesL,1));
         omaxmikpji = maxplus(j,indicesL,miipji(:,ji));
-        for iapos = 1:numBvertices
-           idx = indicesL(i,iapos);
-           if idx == 0
-               continue;
+        for l = 1:numBvertices
+           iapos = neighborsL(i,l);
+           if iapos == 0
+               break;
            end
+           idx = indicesL(i,iapos);
            omaxp1=max(maxpluspq(1,2,indicesL,j,miipji,ji,(1/4)*beta*distB,iapos),0);
            omaxsigma = maxsigma(i,j,iapos,miipji(:,ji),indicesL,(1/4)*beta*distBtrans,neighborsL);
            omaxp2 = max(othermaxmikpji(idx),omaxmikpji);
@@ -151,7 +153,11 @@ while iter<=maxiter
         japos = Be(ij,2);  
         othermaxmikqij = othermaxplus(1,Le(:,1),Le(:,2),miiqij(:,ij),m,n,zeros(nedgesL,1));
         omaxmikqij = maxplus(japos,indicesLtrans,miiqij(:,ij));
-        for i = 1:numAvertices
+        for l = 1:numAvertices
+           i = neighborsInverseL(iapos,l);
+           if i==0
+               break;
+           end
            idx = indicesL(i,iapos);
            if idx == 0
                continue;
@@ -168,15 +174,16 @@ while iter<=maxiter
         iapos = Be(ji,2);  
         othermaxmikqji = othermaxplus(1,Le(:,1),Le(:,2),miiqji(:,ji),m,n,zeros(nedgesL,1));
         omaxmikqji = maxplus(japos,indicesLtrans,miiqji(:,ji));
-        for i = 1:numAvertices
-           idx = indicesL(i,iapos);
-           if idx == 0
-               continue;
+        for l = 1:numAvertices
+           i = neighborsInverseL(iapos,l);
+           if i==0
+               break;
            end
+           idx = indicesL(i,iapos);
            omaxq1=max(maxpluspq(2,2,indicesL,japos,miiqji,ji,(1/4)*beta*distA,iapos),0);
            omaxsigma = maxsigma(iapos,japos,i,miiqji(:,ji),indicesLtrans,(1/4)*beta*distAtrans,neighborsInverseL);
            omaxq2 = max(othermaxmikqji(idx),omaxmikqji);
-           mpjiii(ji,idx) = omaxq1 - max(max(omaxsigma,omaxq2),0);
+           mqjiii(ji,idx) = omaxq1 - max(max(omaxsigma,omaxq2),0);
         end        
     end
     
@@ -217,14 +224,14 @@ while iter<=maxiter
         miiqji = curdamp*(miiqji)+(1-curdamp)*(prevmiiqji);
     end
     
-    [hista(iter,:) mi1] = round_messages(miifi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
-    [histb(iter,:) mi2]= round_messages(miigi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
+    [hista(iter,:) mi1 ma1 mb1] = round_messages(miifi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
+    [histb(iter,:) mi2 ma2 mb2]= round_messages(miigi,Le(:,3),Le(:,1),Le(:,2),alpha,beta,rp,ci,tripi,matn,matm,mperm,distA,distB);
     
     if hista(iter,1)>fbest
-        fbestiter=iter;  fbest=hista(iter,1); mi = mi1;
+        fbestiter=iter;  fbest=hista(iter,1); mi = mi1;ma = ma1; mb = mb1;
     end
     if histb(iter,1)>fbest
-        fbestiter=-iter;  fbest=histb(iter,1);mi = mi2;
+        fbestiter=-iter;  fbest=histb(iter,1); mi = mi2;ma = ma2; mb = mb2;
     end
     
     if verbose
@@ -365,7 +372,7 @@ end
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [info mi]=round_messages(messages,w,li,lj,alpha,beta,rp,ci,tripi,n,m,perm,distA,distB)
+function [info mi ma mb]=round_messages(messages,w,li,lj,alpha,beta,rp,ci,tripi,n,m,perm,distA,distB)
 ai=zeros(length(tripi),1);
 ai(tripi>0)=messages(perm);
 [val ma mb mi]= bipartite_matching_primal_dual(rp,ci,ai,tripi,n,m);
