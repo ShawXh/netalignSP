@@ -164,7 +164,7 @@ while iter<=maxiter
            omaxq1=max(maxpluspq(2,2,indicesL,japos,miiqji,ji,(1/4)*beta*distA,iapos),0);
            omaxsigma = maxsigma(iapos,japos,i,miiqji(:,ji),indicesLtrans,(1/4)*beta*distAtrans);
            omaxq2 = max(othermaxmikqji(idx),omaxmikqji);
-           mpjiii(ji,idx) = omaxq1 - max(max(omaxsigma,omaxq2),0);
+           mqjiii(ji,idx) = omaxq1 - max(max(omaxsigma,omaxq2),0);
         end        
     end
     
